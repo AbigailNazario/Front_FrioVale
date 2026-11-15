@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { Activity, Bell, FileText, LayoutGrid, LogIn, Moon, Sun, Truck, Users } from 'lucide-react'
+import { Activity, Bell, Box, FileText, LayoutGrid, LogIn, Moon, Sun, Truck, Users } from 'lucide-react'
 import Logo from './Logo'
 import { api } from '../api'
 import { useAsyncData } from '../hooks/useAsyncData'
@@ -9,6 +9,7 @@ import { alertColor, alertDetail, alertTitle, roleLabel, timeAgo } from '../data
 const nav = [
   { to: '/', label: 'Visão geral', icon: LayoutGrid },
   { to: '/viagens', label: 'Viagens', icon: Truck },
+  { to: '/containers', label: 'Contêineres', icon: Box },
   { to: '/alertas', label: 'Alertas', icon: Bell },
   { to: '/logs-iot', label: 'Logs IoT', icon: Activity },
   { to: '/equipe', label: 'Equipe', icon: Users },

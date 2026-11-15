@@ -4,6 +4,7 @@ import Layout from './components/Layout'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Team from './pages/Team'
+import Containers from './pages/Containers'
 import Reports from './pages/Reports'
 import Profile from './pages/Profile'
 import IoTLogs from './pages/IotLogs'
@@ -21,6 +22,7 @@ export default function App() {
         <Route path="alertas" element={<Alerts />} />
         <Route path="logs-iot" element={<IoTLogs />} />
         <Route path="equipe" element={<Team />} />
+        <Route path="containers" element={<Containers />} />
         <Route path="relatorios" element={<Reports />} />
         <Route path="perfil" element={<Profile />} />
         <Route path="*" element={<Navigate to="/" />} />
