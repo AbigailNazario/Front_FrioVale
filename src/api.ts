@@ -9,6 +9,42 @@ export interface UserResponse {
   role: Role
 }
 
+export interface FruitResponse {
+  id: number
+  name: string
+  minTemp: number
+  maxTemp: number
+  minHumidity: number
+  maxHumidity: number
+}
+
+export interface ContainerResponse {
+  id: number
+  code: string
+  thingSpeakChannelId: string
+  available: boolean
+}
+
+export interface ContainerRequest {
+  code: string
+  thingSpeakChannelId: string
+}
+
+export interface TripResponse {
+  id: number
+  containerId: number
+  containerCode: string
+  driverId: number
+  driverName: string
+  fruitId: number
+  fruitName: string
+  origin: string | null
+  destination: string | null
+  status: TripStatus
+  startDate: string | null
+  endDate: string | null
+}
+
 export interface TripMonitor {
   id: number
   containerId: number
@@ -35,6 +71,13 @@ export interface TripMonitor {
   readings: number
   readingsInRange: number
   inRangePercent: number | null
+  // IA (Monitoramento Inteligente)
+  iaAnomalia: boolean | null
+  iaResultado: string | null
+  iaMensagem: string | null
+  iaPerfil: string | null
+  regrasAnomalia: boolean | null
+  iaDivergencia: boolean | null
 }
 
 export interface AlertResponse {
@@ -133,13 +176,17 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (!response.ok) {
     let detail = `Não foi possível concluir a requisição (HTTP ${response.status}).`
+    let errors: Record<string, string> | undefined
     try {
       const body = await response.json() as { detail?: string; message?: string; errors?: Record<string, string> }
       detail = body.detail ?? body.message ?? Object.values(body.errors ?? {})[0] ?? detail
+      errors = body.errors
     } catch {
       // resposta sem JSON: mantém a mensagem padrão
     }
-    throw new Error(detail)
+    const error = new Error(detail)
+    ;(error as Error & { errors?: Record<string, string> }).errors = errors
+    throw error
   }
 
   if (response.status === 204) {
@@ -158,6 +205,38 @@ export const api = {
 
   trips: () => request<TripMonitor[]>('/api/trips'),
   activeTrips: () => request<TripMonitor[]>('/api/trips/active/monitor'),
+  createTrip: (body: {
+    containerId: number
+    driverId: number
+    fruitId: number
+    origin?: string
+    destination?: string
+    startNow: boolean
+  }) => request<TripResponse>('/api/trips', { method: 'POST', body: JSON.stringify(body) }),
+  updateTripStatus: (id: number, status: TripStatus) =>
+    request<TripResponse>(`/api/trips/${id}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({ status }),
+    }),
+  updateTrip: (id: number, body: {
+    status: TripStatus
+    containerId?: number
+    driverId?: number
+    fruitId?: number
+    origin?: string
+    destination?: string
+    startNow?: boolean
+  }) => request<TripResponse>(`/api/trips/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+
+  fruits: () => request<FruitResponse[]>('/api/fruits'),
+  containers: () => request<ContainerResponse[]>('/api/containers'),
+  container: (id: number) => request<ContainerResponse>(`/api/containers/${id}`),
+  createContainer: (body: ContainerRequest) =>
+    request<ContainerResponse>('/api/containers', { method: 'POST', body: JSON.stringify(body) }),
+  updateContainer: (id: number, body: ContainerRequest) =>
+    request<ContainerResponse>(`/api/containers/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  deleteContainer: (id: number) =>
+    request<void>(`/api/containers/${id}`, { method: 'DELETE' }),
   telemetry: (tripId: number) => request<TelemetryResponse[]>(`/api/trips/${tripId}/telemetry`),
 
   alerts: () => request<AlertResponse[]>('/api/alerts'),

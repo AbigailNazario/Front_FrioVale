@@ -1,16 +1,24 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { ArrowRight, Bell, Check, Thermometer, Truck, X } from 'lucide-react'
 import { api } from '../api'
 import { useAsyncData } from '../hooks/useAsyncData'
+import { tripEvents } from '../lib/tripEvents'
 import {
   alertColor, alertDetail, alertTitle, fmt, fmtTemp, timeAgo, tripCode, tripRoute, tripStatus,
+  iaStatus, iaDivergenciaLabel, iaToneColor,
 } from '../data'
 import TempChart from '../components/TempChart'
 
 export default function Dashboard() {
   const [selected, setSelected] = useState<number | null>(null)
-  const { data, loading, error } = useAsyncData(() => api.dashboard())
+  const { data, loading, error, reload } = useAsyncData(() => api.dashboard())
   const { data: currentUser } = useAsyncData(() => api.currentUser())
+
+  // Atualiza automaticamente quando uma viagem é cadastrada em outra tela (ex.: /viagens).
+  useEffect(() => {
+    const unsubscribe = tripEvents.on(() => reload())
+    return unsubscribe
+  }, [reload])
   const { data: telemetry } = useAsyncData(
     () => (selected == null ? Promise.resolve([]) : api.telemetry(selected)),
     [selected],
@@ -91,7 +99,7 @@ export default function Dashboard() {
               <span className="badge">{trips.length} viagens ativas</span>
             </div>
             <table>
-              <thead><tr><th>Viagem</th><th>Rota</th><th>Carga</th><th>Temperatura</th><th>Status</th><th className="r">Histórico</th></tr></thead>
+              <thead><tr><th>Viagem</th><th>Rota</th><th>Motorista</th><th>Carga</th><th>Temperatura</th><th>Status</th><th className="r">Histórico</th></tr></thead>
               <tbody>
                 {trips.length === 0 && (
                   <tr><td colSpan={6} className="muted">Nenhuma viagem em andamento no momento.</td></tr>
@@ -102,6 +110,7 @@ export default function Dashboard() {
                     <tr key={t.id} className={selected === t.id ? 'sel' : ''}>
                       <td><b>{tripCode(t.id)}</b></td>
                       <td>{tripRoute(t)}</td>
+                      <td>{t.driverName}</td>
                       <td>{t.fruitName}</td>
                       <td className={t.inRange === false ? 'hot' : t.inRange === true ? 'ok' : ''}><b>{fmtTemp(t.temperature)}</b></td>
                       <td><span className={`pill ${status.tone}`}>{status.label}</span></td>
@@ -140,6 +149,29 @@ export default function Dashboard() {
                   {series.length > 0
                     ? <TempChart series={series} labels={labels} safeMin={trip.minTemp} safeMax={trip.maxTemp} />
                     : <p className="muted">Nenhuma leitura de telemetria registrada para esta viagem.</p>}
+                </div>
+                <div className="hist-cards">
+                  <div className="mini">
+                    <small>Monitoramento Inteligente (IA)</small>
+                    <strong className={iaToneColor(trip.iaResultado === 'anomalia' ? 'red' : trip.iaResultado === 'normal' ? 'green' : 'soft')}>
+                      {iaStatus(trip.iaResultado).label}
+                    </strong>
+                  </div>
+                  <div className="mini">
+                    <small>Regras fixas</small>
+                    <strong className={trip.regrasAnomalia === true ? 'hot' : trip.regrasAnomalia === false ? 'ok' : 'soft'}>
+                      {trip.regrasAnomalia === true ? 'Alerta' : trip.regrasAnomalia === false ? 'Normal' : 'Sem dado'}
+                    </strong>
+                  </div>
+                  <div className="mini">
+                    <small>Status geral</small>
+                    <strong className={trip.iaDivergencia === true ? 'hot' : trip.iaDivergencia === false ? 'ok' : 'soft'}>
+                      {trip.iaDivergencia === true ? 'Divergência' : trip.iaDivergencia === false ? 'Alinhado' : 'Sem análise'}
+                    </strong>
+                  </div>
+                </div>
+                <div className="card-wrap">
+                  <small>{trip.iaMensagem || 'Sem análise de IA disponível para esta leitura.'}</small>
                 </div>
               </div>
             )}

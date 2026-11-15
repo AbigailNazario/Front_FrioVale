@@ -57,6 +57,35 @@ export const monthNames = [
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
 ]
 
+/**
+ * Retorna o status visual da IA com base no resultado da predicao.
+ * - 'normal' -> verde
+ * - 'anomalia' -> vermelho
+ * - null/outros -> cinza (aguardando ou indisponivel)
+ */
+export function iaStatus(resultado: string | null): { label: string; tone: 'green' | 'red' | 'soft' } {
+  if (resultado === 'normal') return { label: 'Normal', tone: 'green' }
+  if (resultado === 'anomalia') return { label: 'Anomalia detectada', tone: 'red' }
+  return { label: 'Aguardando análise', tone: 'soft' }
+}
+
+/**
+ * Retorna o label da diferenca entre IA e regras fixas.
+ */
+export function iaDivergenciaLabel(divergencia: boolean | null): string {
+  if (divergencia === true) return 'Divergência IA vs Regras'
+  if (divergencia === false) return 'IA e Regras alinhadas'
+  return 'Sem análise'
+}
+
+export const iaToneColor = (tone: 'green' | 'red' | 'soft') => {
+  switch (tone) {
+    case 'green': return 'ok'
+    case 'red': return 'hot'
+    case 'soft': return 'soft'
+  }
+}
+
 export const currentMonthName = () => monthNames[new Date().getMonth()]
 
 export const yearOptions = () =>
