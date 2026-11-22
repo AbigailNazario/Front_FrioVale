@@ -48,6 +48,8 @@ export default function Dashboard() {
 
   const trip = trips.find(t => t.id === selected)
   const history = (telemetry ?? []).slice(-60)
+  // Última leitura: usada para exibir os dados do acelerômetro (field3/field4/field5).
+  const lastReading = history.length > 0 ? history[history.length - 1] : null
   const series = history.map(t => t.temperature)
   const labels = history.map(t => {
     const date = new Date(t.timestamp)
@@ -221,13 +223,14 @@ export default function Dashboard() {
 
                 {monitorTab === 'impacts' && (
                   <>
+                    {/* Resumo da viagem (eventos 800 do canal de eventos) */}
                     <div className="hist-cards">
                       <div className="mini">
                         <small>Impactos na viagem</small>
                         <strong><Zap size={18} /> {impactSummary?.total ?? 0}</strong>
                       </div>
                       <div className="mini">
-                        <small>Maior pico em g</small>
+                        <small>Maior pico registrado</small>
                         <strong className={(impactSummary?.maxPeakG ?? 0) >= 2 ? 'hot' : ''}>
                           {impactSummary?.maxPeakG != null ? `${impactSummary.maxPeakG.toFixed(1).replace('.', ',')} g` : '—'}
                         </strong>
@@ -250,6 +253,25 @@ export default function Dashboard() {
                       )}
                       <ImpactTimeline impacts={impacts ?? []} />
                     </div>
+                    {/* Leitura acelerômetro (field3/field4/field5 do canal de telemetria) */}
+                    <h4 className="accel-section-title">Última leitura do acelerômetro</h4>
+                    <div className="hist-cards">
+                      <div className="mini">
+                        <small>Pico do intervalo</small>
+                        <strong><Zap size={18} /> {lastReading?.peakG == null ? '—' : `${fmt(lastReading.peakG)} g`}</strong>
+                      </div>
+                      <div className="mini">
+                        <small>Inclinação</small>
+                        <strong>{lastReading?.tiltDeg == null ? '—' : `${fmt(lastReading.tiltDeg)}°`}</strong>
+                      </div>
+                      <div className="mini">
+                        <small>Impactos na sessão</small>
+                        <strong>{lastReading?.sessionImpactCount == null ? '—' : String(lastReading.sessionImpactCount)}</strong>
+                      </div>
+                    </div>
+                    <p className="muted accel-reading-time">
+                      {lastReading ? `Leitura de ${formatDateTime(lastReading.timestamp)}` : 'Sem leitura recente do acelerômetro'}
+                    </p>
                   </>
                 )}
               </div>

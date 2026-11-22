@@ -101,6 +101,12 @@ export interface TelemetryResponse {
   humidity: number | null
   latitude: number | null
   longitude: number | null
+  /** Pico do intervalo em g (field3). Pode ser null em leituras antigas. */
+  peakG: number | null
+  /** Inclinação em graus (field4). */
+  tiltDeg: number | null
+  /** Contador acumulado de impactos na sessão do ESP32 (field5). Não somar entre leituras. */
+  sessionImpactCount: number | null
   timestamp: string
   isAlert: boolean
 }
@@ -126,6 +132,12 @@ export interface IoTLog {
   humidity: number | null
   latitude: number | null
   longitude: number | null
+  /** Pico do intervalo em g (field3). Pode ser null em leituras antigas. */
+  peakG: number | null
+  /** Inclinação em graus (field4). */
+  tiltDeg: number | null
+  /** Contador acumulado de impactos na sessão do ESP32 (field5). */
+  sessionImpactCount: number | null
   recordedAt: string
   fetchedAt: string
 }

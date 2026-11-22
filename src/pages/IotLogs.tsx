@@ -71,12 +71,12 @@ export default function IoTLogs() {
               <thead>
                 <tr>
                   <th>Contêiner</th><th>Canal</th><th>Entrada</th><th>Temperatura</th>
-                  <th>Umidade</th><th>Localização</th><th>Registrado em</th>
+                  <th>Umidade</th><th>Registrado em</th>
                 </tr>
               </thead>
               <tbody>
                 {!loading && logs.length === 0 && (
-                  <tr><td colSpan={7} className="muted">
+                  <tr><td colSpan={6} className="muted">
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
                       <Activity size={14} /> Nenhum log recebido. Cadastre um contêiner com canal ThingSpeak e sincronize.
                     </span>
@@ -89,7 +89,6 @@ export default function IoTLogs() {
                     <td>{log.entryId ?? '—'}</td>
                     <td>{log.temperature == null ? '—' : `${fmt(log.temperature)} °C`}</td>
                     <td>{log.humidity == null ? '—' : `${fmt(log.humidity)} %`}</td>
-                    <td>{log.latitude != null && log.longitude != null ? `${log.latitude.toFixed(5)}, ${log.longitude.toFixed(5)}` : '—'}</td>
                     <td>{formatDateTime(log.recordedAt)}</td>
                   </tr>
                 ))}
@@ -97,28 +96,58 @@ export default function IoTLogs() {
             </table>
           </>
         ) : (
-          <table>
-            <thead>
-              <tr><th>Contêiner</th><th>Dispositivo / Placa</th><th>Pico (g)</th><th>Data e horário</th></tr>
-            </thead>
-            <tbody>
-              {impactList.length === 0 && (
-                <tr><td colSpan={4} className="muted">
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                    <Zap size={14} /> Nenhum impacto registrado nos canais cadastrados.
-                  </span>
-                </td></tr>
-              )}
-              {impactList.map(i => (
-                <tr key={i.id}>
-                  <td><b>{i.containerCode ?? '—'}</b></td>
-                  <td>{i.plate ?? '—'}</td>
-                  <td className={i.peakG >= 2 ? 'hot' : ''}><b>{i.peakG.toFixed(1).replace('.', ',')} g</b></td>
-                  <td>{formatDateTime(i.originalTimestamp)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <>
+            {/* Eventos individuais (canal de eventos 3551998) */}
+            <h4 className="section-heading">Eventos de impacto</h4>
+            <table>
+              <thead>
+                <tr><th>Contêiner</th><th>Dispositivo / Placa</th><th>Pico (g)</th><th>Data e horário</th></tr>
+              </thead>
+              <tbody>
+                {impactList.length === 0 && (
+                  <tr><td colSpan={4} className="muted">
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                      <Zap size={14} /> Nenhum impacto registrado nos canais cadastrados.
+                    </span>
+                  </td></tr>
+                )}
+                {impactList.map(i => (
+                  <tr key={i.id}>
+                    <td><b>{i.containerCode ?? '—'}</b></td>
+                    <td>{i.plate ?? '—'}</td>
+                    <td className={i.peakG >= 2 ? 'hot' : ''}><b>{i.peakG.toFixed(1).replace('.', ',')} g</b></td>
+                    <td>{formatDateTime(i.originalTimestamp)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {/* Leituras do acelerômetro (field3/field4/field5 do canal de telemetria) */}
+            <h4 className="section-heading">Leituras do acelerômetro</h4>
+            <table>
+              <thead>
+                <tr><th>Contêiner</th><th>Data e horário</th><th>Pico do intervalo</th><th>Inclinação</th><th>Impactos na sessão</th></tr>
+              </thead>
+              <tbody>
+                {logs.filter(l => l.peakG != null || l.tiltDeg != null || l.sessionImpactCount != null).length === 0 && (
+                  <tr><td colSpan={5} className="muted">
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                      <Activity size={14} /> Nenhuma leitura do acelerômetro disponível.
+                    </span>
+                  </td></tr>
+                )}
+                {logs.filter(l => l.peakG != null || l.tiltDeg != null || l.sessionImpactCount != null).map(log => (
+                  <tr key={`accel-${log.id}`}>
+                    <td><b>{log.containerCode ?? '—'}</b></td>
+                    <td>{formatDateTime(log.recordedAt)}</td>
+                    <td>{log.peakG == null ? '—' : `${fmt(log.peakG)} g`}</td>
+                    <td>{log.tiltDeg == null ? '—' : `${fmt(log.tiltDeg)}°`}</td>
+                    <td>{log.sessionImpactCount == null ? '—' : String(log.sessionImpactCount)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
         )}
       </div>
     </div>

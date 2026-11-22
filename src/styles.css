@@ -102,6 +102,11 @@ tr.sel td{background:var(--bg)}
 .hint-box strong{display:block;font-size:13px;margin-bottom:6px;color:var(--navy)}
 .hint-box p{margin:6px 0 0;color:var(--muted);line-height:1.6}
 
+/* Títulos de seção (impactos / acelerômetro) */
+.section-heading,.accel-section-title{font-size:13px;font-weight:700;color:var(--navy);margin:18px 20px 8px}
+.accel-section-title{margin-left:0}
+.accel-reading-time{margin:8px 0 0;font-size:11px}
+
 /* ===== Monitoramento: abas e impactos do acelerômetro ===== */
 .monitor-tabs{margin:18px 0 4px}
 .impact-wrap{padding:16px 14px}
