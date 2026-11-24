@@ -121,3 +121,10 @@ tr.sel td{background:var(--bg)}
 .impact-info{display:flex;flex-direction:column;gap:2px}
 .impact-info strong{font-size:13px;color:var(--navy)}
 .impact-info small{font-size:11px}
+/* [Seguranca - 2FA] segunda etapa do login */
+.qr-box{display:grid;place-items:center;min-height:216px;margin:18px 0 6px;padding:8px;background:#fff;border:1px solid var(--line);border-radius:12px}
+.otp-input{letter-spacing:.5em;font-size:22px;text-align:center;font-weight:700}
+.codes-grid{list-style:none;padding:0;margin:16px 0 4px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.codes-grid li{padding:8px 10px;border:1px dashed var(--line);border-radius:8px;background:var(--field);text-align:center}
+.codes-grid code{font-size:13px;font-weight:700;letter-spacing:.08em;color:var(--text)}
+.link-btn{color:var(--teal);font-weight:600;text-decoration:underline}

@@ -9,13 +9,20 @@ import Reports from './pages/Reports'
 import Profile from './pages/Profile'
 import IoTLogs from './pages/IotLogs'
 import { Trips, Alerts } from './pages/Lists'
-import { api, session, type UserResponse } from './api'
+import { api, ApiError, session, SESSION_EXPIRED_EVENT, type UserResponse } from './api'
 import { isDriver } from './data'
 
 export default function App() {
   const [auth, setAuth] = useState(() => session.hasToken())
   const [user, setUser] = useState<UserResponse | null>(null)
   const [userLoaded, setUserLoaded] = useState(false)
+
+  // [Seguranca] sessao invalida (401) em qualquer tela: volta para o login
+  useEffect(() => {
+    const expired = () => { setUser(null); setAuth(false) }
+    window.addEventListener(SESSION_EXPIRED_EVENT, expired)
+    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, expired)
+  }, [])
 
   useEffect(() => {
     if (!auth) {
@@ -24,7 +31,14 @@ export default function App() {
     }
     api.currentUser()
       .then(setUser)
-      .catch(() => setUser(null))
+      .catch(err => {
+        setUser(null)
+        // [Seguranca - 2FA] token antigo (emitido antes do 2FA) ou intermediario: exige novo login
+        if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+          session.clear()
+          setAuth(false)
+        }
+      })
       .finally(() => setUserLoaded(true))
   }, [auth])
 

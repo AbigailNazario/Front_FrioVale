@@ -192,6 +192,43 @@ export interface AuthResponse {
   user: UserResponse
 }
 
+// [Seguranca - 2FA] Login em duas etapas
+export interface LoginChallenge {
+  mfaToken: string
+  expiresInMinutes: number
+  enrollmentRequired: boolean
+}
+
+export interface TotpSetup {
+  qrCodeDataUri: string
+  otpauthUri: string
+  issuer: string
+  digits: number
+  periodSeconds: number
+}
+
+export interface TotpConfirm {
+  recoveryCodes: string[]
+  auth: AuthResponse
+}
+
+/** [Seguranca] Erro HTTP com o status, para tratar 401/403/404 de forma especifica. */
+export class ApiError extends Error {
+  status: number
+  errors?: Record<string, string>
+  constructor(message: string, status: number, errors?: Record<string, string>) {
+    super(message)
+    this.status = status
+    this.errors = errors
+  }
+}
+
+/** [Seguranca - IDOR] Mensagem padrao quando o backend nega acesso a um recurso de outro usuario. */
+export const ACCESS_DENIED_MESSAGE = 'Acesso negado: este recurso não pertence ao seu usuário.'
+
+export const isAccessDenied = (err: unknown) =>
+  err instanceof ApiError && (err.status === 403 || err.status === 404)
+
 export interface RegisterPayload {
   name: string
   email: string
@@ -203,6 +240,11 @@ const API_URL = ((import.meta.env.VITE_API_URL as string | undefined) ?? 'http:/
   .replace(/\/+$/, '')
 
 const TOKEN_KEY = 'friovale.token'
+
+/** [Seguranca] Disparado quando o backend responde 401 para uma sessao existente. */
+export const SESSION_EXPIRED_EVENT = 'friovale:session-expired'
+
+const bearer = (token: string) => ({ Authorization: `Bearer ${token}` })
 
 export const session = {
   token: () => localStorage.getItem(TOKEN_KEY),
@@ -232,9 +274,17 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     } catch {
       // resposta sem JSON: mantém a mensagem padrão
     }
-    const error = new Error(detail)
-    ;(error as Error & { errors?: Record<string, string> }).errors = errors
-    throw error
+    const isAuthRoute = path.startsWith('/api/auth/')
+    // [Seguranca] sessao expirada/invalida: volta para o login
+    if (response.status === 401 && !isAuthRoute && token) {
+      session.clear()
+      window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT))
+    }
+    // [Seguranca - IDOR] o backend negou o acesso: nenhuma informacao do recurso e exibida
+    if ((response.status === 403 || response.status === 404) && !isAuthRoute) {
+      detail = response.status === 403 ? ACCESS_DENIED_MESSAGE : 'Recurso não encontrado ou sem permissão de acesso.'
+    }
+    throw new ApiError(detail, response.status, errors)
   }
 
   if (response.status === 204) {
@@ -244,10 +294,23 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  // [Seguranca - 2FA] a senha correta devolve so o desafio do segundo fator (mfaToken)
   login: (body: { email: string; password: string }) =>
-    request<AuthResponse>('/api/auth/login', { method: 'POST', body: JSON.stringify(body) }),
+    request<LoginChallenge>('/api/auth/login', { method: 'POST', body: JSON.stringify(body) }),
   register: (body: RegisterPayload) =>
-    request<AuthResponse>('/api/auth/register', { method: 'POST', body: JSON.stringify(body) }),
+    request<LoginChallenge>('/api/auth/register', { method: 'POST', body: JSON.stringify(body) }),
+
+  // [Seguranca - 2FA] estas rotas usam o mfaToken; a validacao do codigo acontece no backend
+  twoFactorSetup: (mfaToken: string) =>
+    request<TotpSetup>('/api/auth/2fa/setup', { method: 'POST', headers: bearer(mfaToken) }),
+  twoFactorConfirm: (mfaToken: string, code: string) =>
+    request<TotpConfirm>('/api/auth/2fa/confirm', { method: 'POST', headers: bearer(mfaToken), body: JSON.stringify({ code }) }),
+  twoFactorVerify: (mfaToken: string, code: string) =>
+    request<AuthResponse>('/api/auth/2fa/verify', { method: 'POST', headers: bearer(mfaToken), body: JSON.stringify({ code }) }),
+  twoFactorRecovery: (mfaToken: string, recoveryCode: string) =>
+    request<AuthResponse>('/api/auth/2fa/recovery', { method: 'POST', headers: bearer(mfaToken), body: JSON.stringify({ recoveryCode }) }),
+  regenerateRecoveryCodes: () =>
+    request<{ recoveryCodes: string[] }>('/api/auth/2fa/recovery-codes/regenerate', { method: 'POST' }),
 
   dashboard: () => request<DashboardSummary>('/api/dashboard/summary'),
 
@@ -318,7 +381,8 @@ export const api = {
     return fetch(`${API_URL}/api/reports/pdf?${params}`, {
       headers: { Authorization: `Bearer ${session.token() ?? ''}` },
     }).then(r => {
-      if (!r.ok) throw new Error('Não foi possível gerar o relatório.');
+      if (r.status === 403) throw new ApiError(ACCESS_DENIED_MESSAGE, 403);
+      if (!r.ok) throw new ApiError('Não foi possível gerar o relatório.', r.status);
       return r.blob();
     });
   },
@@ -326,7 +390,8 @@ export const api = {
     fetch(`${API_URL}/api/reports/trips/${tripId}/pdf`, {
       headers: { Authorization: `Bearer ${session.token() ?? ''}` },
     }).then(r => {
-      if (!r.ok) throw new Error('Não foi possível gerar o PDF da viagem.');
+      if (r.status === 403) throw new ApiError(ACCESS_DENIED_MESSAGE, 403);
+      if (!r.ok) throw new ApiError('Não foi possível gerar o PDF da viagem.', r.status);
       return r.blob();
     }),
 }

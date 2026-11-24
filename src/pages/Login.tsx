@@ -2,7 +2,8 @@ import { FormEvent, useState } from 'react'
 import { ArrowRight, Check } from 'lucide-react'
 import Logo from '../components/Logo'
 import { ThemeButton } from '../components/Layout'
-import { api, session } from '../api'
+import { api, session, type LoginChallenge } from '../api'
+import TwoFactorStep from '../components/TwoFactorStep'
 
 const maskPhone = (v: string) => {
   const d = v.replace(/\D/g, '').slice(0, 11)
@@ -19,6 +20,8 @@ export default function Login({ onLogin }: { onLogin: () => void }) {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  // [Seguranca - 2FA] depois da senha correta o backend devolve so o desafio do segundo fator
+  const [challenge, setChallenge] = useState<LoginChallenge | null>(null)
   const signup = tab === 'up'
 
   const changeTab = (next: 'in' | 'up') => {
@@ -34,8 +37,8 @@ export default function Login({ onLogin }: { onLogin: () => void }) {
       const result = signup
         ? await api.register({ name, email, phone: phone || undefined, password })
         : await api.login({ email, password })
-      session.save(result.token)
-      onLogin()
+      setPassword('')
+      setChallenge(result) // o token de acesso so chega depois do 2FA
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Não foi possível entrar. Tente novamente.')
     } finally {
@@ -59,6 +62,13 @@ export default function Login({ onLogin }: { onLogin: () => void }) {
 
       <section className="login-form">
         <div className="theme-corner"><ThemeButton /></div>
+        {challenge ? (
+          <TwoFactorStep
+            challenge={challenge}
+            onDone={auth => { session.save(auth.token); onLogin() }}
+            onCancel={() => { setChallenge(null); setError('') }}
+          />
+        ) : (
         <form onSubmit={submit}>
           <span className="eyebrow">{signup ? 'Comece agora' : 'Bem-vindo de volta'}</span>
           <h2>{signup ? 'Crie sua conta' : 'Acesse sua conta'}</h2>
@@ -93,6 +103,7 @@ export default function Login({ onLogin }: { onLogin: () => void }) {
           </button>
           <p className="legal">Ao continuar, você concorda com o uso seguro dos dados operacionais para monitoramento da cadeia fria.</p>
         </form>
+        )}
       </section>
     </div>
   )
