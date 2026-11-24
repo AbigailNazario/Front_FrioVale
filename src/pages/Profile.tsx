@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { Camera } from 'lucide-react'
+import { Camera, KeyRound } from 'lucide-react'
 import { api } from '../api'
 import { useAsyncData } from '../hooks/useAsyncData'
 import { roleLabel } from '../data'
@@ -8,6 +8,21 @@ export default function Profile() {
   const ref = useRef<HTMLInputElement>(null)
   const [img, setImg] = useState<string>()
   const { data: user, loading, error } = useAsyncData(() => api.currentUser())
+  // [Seguranca - 2FA] gerar novos codigos de recuperacao invalida todos os anteriores
+  const [codes, setCodes] = useState<string[]>([])
+  const [codesMsg, setCodesMsg] = useState('')
+  const regenerate = async () => {
+    if (!window.confirm('Gerar novos códigos? Os códigos de recuperação atuais deixarão de funcionar.')) return
+    setCodesMsg('')
+    try {
+      const result = await api.regenerateRecoveryCodes()
+      setCodes(result.recoveryCodes)
+      setCodesMsg('Novos códigos gerados. Guarde-os: eles não serão exibidos novamente.')
+    } catch (err) {
+      setCodes([])
+      setCodesMsg(err instanceof Error ? err.message : 'Não foi possível gerar novos códigos.')
+    }
+  }
   const onFile = (f?: File) => { if (f && f.size <= 5 * 1024 * 1024) setImg(URL.createObjectURL(f)) }
   const name = user?.name ?? '—'
   const role = user ? roleLabel(user.role) : '—'
@@ -39,6 +54,13 @@ export default function Profile() {
           <h2>{name}</h2><span className="pill soft">{role}</span>
           <div className="grid2">{fields.map(([k, v]) => <div className="field" key={k}><small>{k}</small><strong>{v}</strong></div>)}</div>
           <div className="field safe"><strong>Seus dados estão protegidos</strong><small>A foto e as informações desta página ficam vinculadas somente à sua conta FrioVale.</small></div>
+          <div className="field safe">
+            <strong>Verificação em duas etapas ativa</strong>
+            <small>Seu login exige a senha e o código do aplicativo autenticador.</small>
+            <button className="btn ghost" onClick={regenerate} style={{ marginTop: 10 }}><KeyRound size={13} /> Gerar novos códigos de recuperação</button>
+            {codesMsg && <small style={{ marginTop: 8 }}>{codesMsg}</small>}
+            {codes.length > 0 && <ul className="codes-grid">{codes.map(c => <li key={c}><code>{c}</code></li>)}</ul>}
+          </div>
         </div>
       </div>
     </div>
